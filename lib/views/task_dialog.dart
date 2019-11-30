@@ -14,6 +14,8 @@ class _TaskDialogState extends State<TaskDialog> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
 
+  GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
   Task _currentTask = Task();
 
   @override
@@ -39,18 +41,32 @@ class _TaskDialogState extends State<TaskDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(widget.task == null ? 'Nova tarefa' : 'Editar tarefas'),
-      content: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          TextField(
-              controller: _titleController,
-              decoration: InputDecoration(labelText: 'Título'),
-              autofocus: true),
-          TextField(
-              controller: _descriptionController,
-              decoration: InputDecoration(labelText: 'Descrição')),
-        ],
+      content: Container(
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                buildTextFormField(
+                  label: "Título",
+                  error: "Insira um título!",
+                  controller: _titleController,
+                ),
+                buildMultilineTextFormField(
+                  label: "Descrição",
+                  error: "Insira uma descrição!",
+                  controller: _descriptionController,
+                ),
+                Container(
+                  padding: EdgeInsets.all(10.0),
+                ),
+                Text("Prioridade:"),
+                buildDropdown(),
+              ],
+            ),
+          ),
+        ),
       ),
       actions: <Widget>[
         FlatButton(
@@ -62,13 +78,95 @@ class _TaskDialogState extends State<TaskDialog> {
         FlatButton(
           child: Text('Salvar'),
           onPressed: () {
-            _currentTask.title = _titleController.value.text;
-            _currentTask.description = _descriptionController.text;
-
-            Navigator.of(context).pop(_currentTask);
+            if (_formKey.currentState.validate()) {
+              _currentTask.title = _titleController.value.text;
+              _currentTask.description = _descriptionController.text;
+              _currentTask.priority = _dropdownValue;
+              print(_currentTask);
+              Navigator.of(context).pop(_currentTask);
+            }
           },
         ),
       ],
+    );
+  }
+
+  Widget buildTextFormField(
+      {TextEditingController controller, String error, String label}) {
+    return TextFormField(
+      keyboardType: TextInputType.text,
+      decoration: InputDecoration(labelText: label),
+      controller: controller,
+      validator: (text) {
+        return text.isEmpty ? error : null;
+      },
+    );
+  }
+
+  Widget buildMultilineTextFormField(
+      {TextEditingController controller, String error, String label}) {
+    return TextFormField(
+      keyboardType: TextInputType.multiline,
+      maxLines: 2,
+      decoration: InputDecoration(labelText: label),
+      controller: controller,
+      validator: (text) {
+        return text.isEmpty ? error : null;
+      },
+    );
+  }
+
+  int _dropdownValue = 1;
+
+  Widget buildDropdown() {
+    return Center(
+      child: DropdownButton<int>(
+          value: _dropdownValue,
+          onChanged: (value) {
+            setState(() {
+              _dropdownValue = value;
+            });
+          },
+          disabledHint: Text("You can't select anything."),
+          items: [
+            DropdownMenuItem(
+              value: 1,
+              child: Text(
+                "1 - Muito baixa",
+                style: TextStyle(color: Colors.blueAccent[700]),
+              ),
+            ),
+            DropdownMenuItem(
+              value: 2,
+              child: Text(
+                "2 - Baixa",
+                style: TextStyle(color: Colors.greenAccent[700]),
+                
+              ),
+            ),
+            DropdownMenuItem(
+              value: 3,
+              child: Text(
+                "3 - Média",
+                style: TextStyle(color: Colors.yellow[700]),
+                
+              ),
+            ),
+            DropdownMenuItem(
+              value: 4,
+              child: Text(
+                "4 - Alta",
+                style: TextStyle(color: Colors.orange[800]),
+              ),
+            ),
+            DropdownMenuItem(
+              value: 5,
+              child: Text(
+                "5 - Muito alta",
+                style: TextStyle(color: Colors.redAccent[700]),
+              ),
+            ),
+          ]),
     );
   }
 }

@@ -1,7 +1,9 @@
 import 'package:flushbar/flushbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:todo_list/helpers/task_helper.dart';
+import 'package:todo_list/models/concludedTaskPercent.dart';
 import 'package:todo_list/models/task.dart';
 import 'package:todo_list/views/task_dialog.dart';
 
@@ -14,6 +16,8 @@ class _HomePageState extends State<HomePage> {
   List<Task> _taskList = [];
   TaskHelper _helper = TaskHelper();
   bool _loading = true;
+  ConcludedTaskPercent _concludedTaskPercent =
+      ConcludedTaskPercent(percent: 0.0, percentLabel: "0.0%");
 
   @override
   void initState() {
@@ -22,6 +26,7 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _taskList = list;
         _loading = false;
+        _calculateConcludedTesksPercent();
       });
     });
   }
@@ -29,7 +34,30 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Lista de Tarefas')),
+      resizeToAvoidBottomPadding: false,
+      appBar: AppBar(
+        title: Text('Lista de Tarefas'),
+        actions: <Widget>[
+          Padding(
+            padding: EdgeInsets.only(right: 5.0),
+            child: CircularPercentIndicator(
+              radius: 45.0,
+              lineWidth: 4.0,
+              animation: true,
+              percent: _concludedTaskPercent.percent,
+              center: new Text(
+                _concludedTaskPercent.percentLabel,
+                style: new TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10.0,
+                    color: Colors.white),
+              ),
+              circularStrokeCap: CircularStrokeCap.round,
+              progressColor: Colors.cyanAccent,
+            ),
+          ),
+        ],
+      ),
       floatingActionButton:
           FloatingActionButton(child: Icon(Icons.add), onPressed: _addNewTask),
       body: _buildTaskList(),
@@ -42,7 +70,10 @@ class _HomePageState extends State<HomePage> {
         child: _loading ? CircularProgressIndicator() : Text("Sem tarefas!"),
       );
     } else {
-      return ListView.builder(
+      return ListView.separated(
+        separatorBuilder: (context, index) => Divider(
+          color: Colors.black26,
+        ),
         itemBuilder: _buildTaskItemSlidable,
         itemCount: _taskList.length,
       );
@@ -52,17 +83,20 @@ class _HomePageState extends State<HomePage> {
   Widget _buildTaskItem(BuildContext context, int index) {
     final task = _taskList[index];
     return CheckboxListTile(
-      value: task.isDone,
-      title: Text(task.title),
-      subtitle: Text(task.description),
-      onChanged: (bool isChecked) {
-        setState(() {
-          task.isDone = isChecked;
-        });
+        value: task.isDone,
+        title: Text(task.title),
+        subtitle: Text(task.description),
+        onChanged: (bool isChecked) {
+          setState(() {
+            task.isDone = isChecked;
+            _calculateConcludedTesksPercent();
+          });
 
-        _helper.update(task);
-      },
-    );
+          _helper.update(task);
+        },
+        secondary: Padding(
+            padding: EdgeInsets.all(6.0),
+            child: _buildIconPriority(task.priority)));
   }
 
   Widget _buildTaskItemSlidable(BuildContext context, int index) {
@@ -91,6 +125,25 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildIconPriority(int priority) {
+    Color color = Colors.black;
+    if (priority == 1) {
+      color = Colors.blueAccent[700];
+    } else if (priority == 2) {
+      color = Colors.greenAccent[700];
+    } else if (priority == 3) {
+      color = Colors.yellow[700];
+    } else if (priority == 4) {
+      color = Colors.orange[800];
+    } else if (priority == 5) {
+      color = Colors.redAccent[700];
+    }
+    return Icon(
+      Icons.trip_origin,
+      color: color,
+    );
+  }
+
   Future _addNewTask({Task editedTask, int index}) async {
     final task = await showDialog<Task>(
       context: context,
@@ -109,6 +162,7 @@ class _HomePageState extends State<HomePage> {
           _taskList[index] = task;
           _helper.update(task);
         }
+        _calculateConcludedTesksPercent();
       });
     }
   }
@@ -139,5 +193,26 @@ class _HomePageState extends State<HomePage> {
         },
       ),
     )..show(context);
+    _calculateConcludedTesksPercent();
+  }
+
+  void _calculateConcludedTesksPercent() {
+    int concludedTasks = 0;
+    double percent = 0.0;
+
+    if (_taskList.length > 0.0) {
+      for (Task task in _taskList) {
+        if (task.isDone) {
+          concludedTasks++;
+        }
+      }
+      percent = (1 * concludedTasks) / _taskList.length;
+    }
+
+    String percentLabel = "${(percent * 100).toStringAsPrecision(4)}%";
+    setState(() {
+      _concludedTaskPercent.percent = percent;
+      _concludedTaskPercent.percentLabel = percentLabel;
+    });
   }
 }
